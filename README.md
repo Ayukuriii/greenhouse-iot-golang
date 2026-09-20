@@ -443,6 +443,8 @@ mosquitto_sub -h localhost -p 1883 -t "greenhouse/control/#" -v
 
 ## Testing
 
+### Automated Unit Tests
+
 The project includes unit and mock test suites using `testify`:
 
 - **Run all tests:**
@@ -454,6 +456,16 @@ The project includes unit and mock test suites using `testify`:
   ```bash
   go test -v -cover ./tests/...
   ```
+
+### Manual End-to-End Testing (`api.http`)
+
+An interactive [api.http](api.http) file is provided at the root of the project. It contains test scenarios covering:
+- Service health & dependency readiness (`GET /status`)
+- Positive & negative sensor data ingestion (`POST /sensor-data`)
+- Positive & negative device actuation commands (`POST /device-control`)
+- Invalid routes and unsupported HTTP methods
+
+You can execute requests directly inside **VS Code** (using the *REST Client* extension) or **JetBrains IDEs** (GoLand / IntelliJ).
 
 ---
 

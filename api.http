@@ -1,0 +1,176 @@
+### ==============================================================================
+### Greenhouse IoT Backend - End-to-End Manual Testing HTTP Playbook
+### Compatible with: VS Code REST Client, JetBrains HTTP Client, IntelliJ / GoLand
+### ==============================================================================
+
+@baseUrl = http://localhost:8080
+@contentType = application/json
+
+###############################################################################
+# 1. SYSTEM HEALTH & DIAGNOSTICS
+###############################################################################
+
+### 1.1 Check Health and Readiness Status
+# Verifies service status, PostgreSQL connectivity, and MQTT broker connectivity
+GET {{baseUrl}}/status
+Accept: {{contentType}}
+
+
+###############################################################################
+# 2. SENSOR DATA INGESTION (POST /sensor-data)
+###############################################################################
+
+### 2.1 Record Temperature Reading (Automatic Server Timestamp)
+POST {{baseUrl}}/sensor-data
+Content-Type: {{contentType}}
+
+{
+  "device_id": "temp-sensor-zone-a",
+  "sensor_type": "temperature",
+  "value": 24.8,
+  "unit": "celsius"
+}
+
+### 2.2 Record Humidity Reading (Automatic Server Timestamp)
+POST {{baseUrl}}/sensor-data
+Content-Type: {{contentType}}
+
+{
+  "device_id": "humidity-sensor-zone-a",
+  "sensor_type": "humidity",
+  "value": 68.5,
+  "unit": "percent"
+}
+
+### 2.3 Record Sensor Reading with Explicit Historical Timestamp
+POST {{baseUrl}}/sensor-data
+Content-Type: {{contentType}}
+
+{
+  "device_id": "temp-sensor-zone-b",
+  "sensor_type": "temperature",
+  "value": 28.3,
+  "unit": "celsius",
+  "recorded_at": "2026-09-20T12:00:00Z"
+}
+
+### 2.4 Record Sensor Reading with Negative Value (e.g. Sub-zero Frost Sensor)
+POST {{baseUrl}}/sensor-data
+Content-Type: {{contentType}}
+
+{
+  "device_id": "temp-sensor-outdoor",
+  "sensor_type": "temperature",
+  "value": -2.5,
+  "unit": "celsius"
+}
+
+### 2.5 [Negative Test] Missing Required 'value' Field (Expects 400 Bad Request)
+POST {{baseUrl}}/sensor-data
+Content-Type: {{contentType}}
+
+{
+  "device_id": "temp-sensor-invalid",
+  "sensor_type": "temperature",
+  "unit": "celsius"
+}
+
+### 2.6 [Negative Test] Invalid 'sensor_type' (Must be temperature or humidity, Expects 400)
+POST {{baseUrl}}/sensor-data
+Content-Type: {{contentType}}
+
+{
+  "device_id": "sensor-001",
+  "sensor_type": "soil_moisture",
+  "value": 45.0,
+  "unit": "percent"
+}
+
+### 2.7 [Negative Test] Empty / Malformed JSON Body (Expects 400 Bad Request)
+POST {{baseUrl}}/sensor-data
+Content-Type: {{contentType}}
+
+{
+  "device_id": 
+}
+
+
+###############################################################################
+# 3. DEVICE CONTROL & MQTT DISPATCH (POST /device-control)
+###############################################################################
+
+### 3.1 Send Command: Turn Exhaust Fan ON
+# Should persist command as pending, push to channel, and publish to MQTT topic: greenhouse/control/fan-zone-a
+POST {{baseUrl}}/device-control
+Content-Type: {{contentType}}
+
+{
+  "device_id": "fan-zone-a",
+  "command": "ON"
+}
+
+### 3.2 Send Command: Turn Exhaust Fan OFF
+# Should publish to topic: greenhouse/control/fan-zone-a
+POST {{baseUrl}}/device-control
+Content-Type: {{contentType}}
+
+{
+  "device_id": "fan-zone-a",
+  "command": "OFF"
+}
+
+### 3.3 Send Command: Turn Irrigation Pump ON
+# Should publish to topic: greenhouse/control/water-pump-01
+POST {{baseUrl}}/device-control
+Content-Type: {{contentType}}
+
+{
+  "device_id": "water-pump-01",
+  "command": "ON"
+}
+
+### 3.4 Send Command: Turn Grow Lights OFF
+# Should publish to topic: greenhouse/control/grow-light-zone-b
+POST {{baseUrl}}/device-control
+Content-Type: {{contentType}}
+
+{
+  "device_id": "grow-light-zone-b",
+  "command": "OFF"
+}
+
+### 3.5 [Negative Test] Invalid Command Action (Only ON or OFF allowed, Expects 400)
+POST {{baseUrl}}/device-control
+Content-Type: {{contentType}}
+
+{
+  "device_id": "fan-zone-a",
+  "command": "PAUSE"
+}
+
+### 3.6 [Negative Test] Missing 'device_id' Field (Expects 400 Bad Request)
+POST {{baseUrl}}/device-control
+Content-Type: {{contentType}}
+
+{
+  "command": "ON"
+}
+
+### 3.7 [Negative Test] Empty Request Body (Expects 400 Bad Request)
+POST {{baseUrl}}/device-control
+Content-Type: {{contentType}}
+
+{}
+
+
+###############################################################################
+# 4. ROUTING & HTTP METHOD FAILURE MODES
+###############################################################################
+
+### 4.1 [Negative Test] Non-existent Endpoint (Expects 404 Not Found)
+GET {{baseUrl}}/non-existent-route
+Accept: {{contentType}}
+
+### 4.2 [Negative Test] Method Not Allowed on /sensor-data (GET instead of POST, Expects 405/404)
+GET {{baseUrl}}/sensor-data
+Accept: {{contentType}}
